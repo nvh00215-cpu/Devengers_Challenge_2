@@ -2,9 +2,9 @@ import streamlit as st
 import google.generativeai as genai
 
 # --- PAGE CONFIGURATION ---
-st.set_page_config(page_title="Smart Bharat - Civic Companion", page_icon="🇮🇳", layout="wide")
+st.set_page_config(page_title="Smart Bharat - Civic Companion", page_icon="🇳", layout="wide")
 
-# --- CUSTOM CSS (Qwen AI Style Chat Box) ---
+# --- CUSTOM CSS (Qwen Style + Accessibility) ---
 st.markdown("""
     <style>
     /* General App Styling */
@@ -56,24 +56,21 @@ st.markdown("""
     .send-button:hover {
         background-color: #FF8800 !important;
     }
+
+    /* --- ACCESSIBILITY IMPROVEMENTS --- */
+    /* Strong focus indicators for keyboard navigation */
+    button:focus-visible, input:focus-visible, textarea:focus-visible, [role="button"]:focus-visible {
+        outline: 3px solid #FF9933 !important;
+        outline-offset: 2px !important;
+    }
     
-    /* Auto-scroll anchor */
-    #chat-input-anchor {
-        scroll-margin-top: 100px;
+    /* High contrast mode support */
+    @media (prefers-contrast: high) {
+        .main-header { color: #FFA500 !important; }
+        .sub-header { color: #008000 !important; }
+        .chat-input-container { border: 2px solid #000 !important; }
     }
     </style>
-""", unsafe_allow_html=True)
-
-# --- JavaScript for Auto-Scroll ---
-st.markdown("""
-    <script>
-    function scrollToChatInput() {
-        var chatInput = document.querySelector('.chat-input-container');
-        if (chatInput) {
-            chatInput.scrollIntoView({behavior: 'smooth', block: 'center'});
-        }
-    }
-    </script>
 """, unsafe_allow_html=True)
 
 # --- ISSUE CATEGORIES & PROMPTS ---
@@ -94,7 +91,7 @@ issue_categories = {
         "issues": ["Power Cuts", "High Bills", "Meter Issues", "New Connection", "Voltage Problems"],
         "prompt": "You are an electricity services expert. Help citizens report outages, dispute bills, and apply for connections. Guide them to local discoms."
     },
-    "🚗 Traffic & Transport": {
+    " Traffic & Transport": {
         "issues": ["Traffic Violations", "Public Transport", "Parking Problems", "Accident Reporting", "Challan Disputes"],
         "prompt": "You are a traffic and transport expert. Help citizens report violations, public transport issues, and guide them to traffic police and RTO portals."
     },
@@ -106,7 +103,7 @@ issue_categories = {
         "issues": ["Air Pollution", "Noise Pollution", "Illegal Encroachment", "Tree Cutting", "Industrial Waste"],
         "prompt": "You are an environmental expert. Help citizens report pollution and environmental violations. Guide them to State Pollution Control Boards."
     },
-    "🏥 Health Services": {
+    " Health Services": {
         "issues": ["Hospital Services", "Vaccination", "Ayushman Bharat", "Medicine Availability", "Ambulance"],
         "prompt": "You are a public health expert. Help citizens access government hospitals, Ayushman Bharat benefits, and emergency medical services (108)."
     },
@@ -145,18 +142,19 @@ if "should_scroll" not in st.session_state:
 
 # --- SIDEBAR ---
 with st.sidebar:
-    st.header("⚙️ Settings")
+    st.header("️ Settings")
     
     language = st.selectbox(
         "🌐 Language / भाषा",
-        ["English", "हिंदी (Hindi)", "தமிழ் (Tamil)", "తెలుగు (Telugu)", "বাংলা (Bengali)", "मराठी (Marathi)"]
+        ["English", "हिंदी (Hindi)", "தமிழ் (Tamil)", "తెలుగు (Telugu)", "বাংলা (Bengali)", "मराठी (Marathi)"],
+        help="Select your preferred language for the AI responses. This promotes digital inclusion."
     )
     
     st.divider()
     
     if st.session_state.selected_category:
         st.success(f"**Active Category:**\n{st.session_state.selected_category}")
-        if st.button("🔄 Clear Category", use_container_width=True):
+        if st.button("🔄 Clear Category", use_container_width=True, help="Reset the selected civic category"):
             st.session_state.selected_category = None
             st.session_state.chat_input_value = ""
             st.rerun()
@@ -165,7 +163,7 @@ with st.sidebar:
         
     st.divider()
     
-    if st.button("🗑️ Clear Chat History", use_container_width=True):
+    if st.button("🗑️ Clear Chat History", use_container_width=True, help="Delete all previous chat messages"):
         st.session_state.messages = []
         st.session_state.chat_input_value = ""
         st.rerun()
@@ -186,7 +184,7 @@ for idx, col in enumerate(cols):
             if cat_idx < len(category_keys):
                 cat_name = category_keys[cat_idx]
                 
-                if st.button(cat_name, key=f"cat_{cat_idx}", use_container_width=True):
+                if st.button(cat_name, key=f"cat_{cat_idx}", use_container_width=True, help=f"Select the {cat_name} category to see specific issues"):
                     st.session_state.selected_category = cat_name
                     st.session_state.chat_input_value = ""
                     st.rerun()
@@ -202,7 +200,7 @@ if st.session_state.selected_category:
     
     for idx, issue in enumerate(cat_data['issues']):
         with sub_cols[idx % len(sub_cols)]:
-            if st.button(issue, key=f"issue_{idx}", use_container_width=True):
+            if st.button(issue, key=f"issue_{idx}", use_container_width=True, help=f"Quickly ask about {issue}"):
                 # Pre-fill the chat input with the quick action
                 st.session_state.chat_input_value = f"I am facing an issue with {issue}. How do I report this and get it resolved?"
                 st.session_state.should_scroll = True
@@ -214,7 +212,7 @@ try:
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('gemini-3.5-flash') 
 except KeyError:
-    st.error("⚠️ GEMINI_API_KEY not found in Streamlit Secrets! Please add it in the app settings.")
+    st.error("️ GEMINI_API_KEY not found in Streamlit Secrets! Please add it in the app settings.")
     st.stop()
 
 # --- CHAT INTERFACE ---
@@ -241,7 +239,7 @@ if st.session_state.should_scroll:
     """, unsafe_allow_html=True)
     st.session_state.should_scroll = False
 
-# --- PRE-FILLABLE CHAT INPUT WITH SEND BUTTON (Qwen Style) ---
+# --- PRE-FILLABLE CHAT INPUT WITH SEND BUTTON (Qwen Style + Accessibility) ---
 st.markdown('<div id="chat-input-anchor"></div>', unsafe_allow_html=True)
 
 with st.form(key="chat_form", clear_on_submit=True):
@@ -253,12 +251,13 @@ with st.form(key="chat_form", clear_on_submit=True):
             value=st.session_state.chat_input_value,
             label_visibility="collapsed",
             placeholder="Ask about government services, file a complaint, or get help...",
-            key="chat_input_field"
+            key="chat_input_field",
+            help="Enter your question about civic services. Press Enter or click the send button to submit."
         )
     
     with col2:
-        # Send button with icon
-        submitted = st.form_submit_button("➤", use_container_width=True)
+        # Send button with icon and accessibility help text
+        submitted = st.form_submit_button("➤", use_container_width=True, help="Send your message to the AI assistant")
 
 if submitted and user_input.strip():
     # Clear the input value for next time
@@ -319,6 +318,6 @@ if submitted and user_input.strip():
 st.markdown("""
 <div class="footer">
 <b>Smart Bharat Initiative</b> | Promoting Transparency, Accessibility & Digital Inclusion<br>
-Built with ❤️ for Devengers PromptWars 2026 | Powered by Google Gemini
+Built with ❤️ for DEVENGERS PromptWars 2026 | Powered by Google for Developers & Hack2Skill
 </div>
 """, unsafe_allow_html=True)
