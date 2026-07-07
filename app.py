@@ -30,7 +30,7 @@ issue_categories = {
         "issues": ["No Water Supply", "Low Pressure", "Contaminated Water", "Water Tanker", "Pipeline Leakage"],
         "prompt": "You are a water utilities expert. Help citizens report water issues, book tankers, and check water quality. Guide them to local water boards."
     },
-    "⚡ Electricity": {
+    " Electricity": {
         "issues": ["Power Cuts", "High Bills", "Meter Issues", "New Connection", "Voltage Problems"],
         "prompt": "You are an electricity services expert. Help citizens report outages, dispute bills, and apply for connections. Guide them to local discoms."
     },
@@ -50,7 +50,7 @@ issue_categories = {
         "issues": ["Hospital Services", "Vaccination", "Ayushman Bharat", "Medicine Availability", "Ambulance"],
         "prompt": "You are a public health expert. Help citizens access government hospitals, Ayushman Bharat benefits, and emergency medical services (108)."
     },
-    " Education": {
+    "🎓 Education": {
         "issues": ["School Admissions", "Scholarships", "Mid-Day Meal", "School Infrastructure", "Teacher Complaints"],
         "prompt": "You are an education expert. Help citizens with school admissions, scholarships, and RTE Act information. Guide them to state education departments."
     },
@@ -58,11 +58,11 @@ issue_categories = {
         "issues": ["PM-KISAN", "Crop Insurance", "Irrigation Issues", "Subsidies & Loans", "MSP Information"],
         "prompt": "You are an agriculture expert. Help farmers access PM-KISAN, crop insurance (PMFBY), and subsidies. Guide them to agriculture department portals."
     },
-    " Housing & Property": {
+    "🏠 Housing & Property": {
         "issues": ["Building Permissions", "Property Tax", "Rent Agreement", "Illegal Construction", "Land Disputes"],
         "prompt": "You are a housing and property expert. Help citizens with building permissions, property tax, and rent agreements. Guide them to municipal and revenue departments."
     },
-    "📄 Documents & IDs": {
+    " Documents & IDs": {
         "issues": ["Aadhaar Card", "PAN Card", "Passport", "Voter ID", "Driving License"],
         "prompt": "You are a government documentation expert. Help citizens with Aadhaar, PAN, passport, voter ID, and driving license. Guide them to UIDAI, NSDL, Passport Seva, NVSP, and Sarathi portals."
     }
@@ -71,7 +71,7 @@ issue_categories = {
 # --- SESSION STATE INITIALIZATION ---
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": "🙏 नमस्ते! Welcome to **Smart Bharat**! I'm your AI civic companion.\n\nI can help you:\n• Report public issues (potholes, garbage, water)\n• Navigate government services (Aadhaar, PAN, Passport)\n• File and track complaints\n\nSelect a category below or just type your question!"}
+        {"role": "assistant", "content": " नमस्ते! Welcome to **Smart Bharat**! I'm your AI civic companion.\n\nI can help you:\n• Report public issues (potholes, garbage, water)\n• Navigate government services (Aadhaar, PAN, Passport)\n• File and track complaints\n\nSelect a category below or just type your question!"}
     ]
 
 if "selected_category" not in st.session_state:
@@ -85,7 +85,7 @@ with st.sidebar:
     st.header("⚙️ Settings")
     
     language = st.selectbox(
-        " Language / भाषा",
+        "🌐 Language / भाषा",
         ["English", "हिंदी (Hindi)", "தமிழ் (Tamil)", "తెలుగు (Telugu)", "বাংলা (Bengali)", "मराठी (Marathi)"]
     )
     
@@ -134,7 +134,7 @@ if st.session_state.selected_category:
     selected_cat = st.session_state.selected_category
     cat_data = issue_categories[selected_cat]
     
-    st.subheader(f"⚡ Quick Actions for {selected_cat}")
+    st.subheader(f" Quick Actions for {selected_cat}")
     sub_cols = st.columns(min(len(cat_data['issues']), 5))
     
     for idx, issue in enumerate(cat_data['issues']):
@@ -156,12 +156,12 @@ except KeyError:
 st.divider()
 st.subheader("💬 Chat with Civic Assistant")
 
-# Display all previous messages
+# 1. Display all previous messages first
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# --- HANDLE QUICK ACTION INPUT ---
+# 2. Handle Quick Action Input (Pre-filled)
 if st.session_state.quick_action_query:
     st.info("📝 **Quick Action:** Edit the message below if needed, then click Send!")
     
@@ -174,7 +174,7 @@ if st.session_state.quick_action_query:
     
     col1, col2 = st.columns([4, 1])
     with col1:
-        if st.button(" Send", use_container_width=True, type="primary", key="btn_send_qa"):
+        if st.button("➤ Send", use_container_width=True, type="primary", key="btn_send_qa"):
             if user_input.strip():
                 # Show user message immediately
                 with st.chat_message("user"):
@@ -213,23 +213,28 @@ if st.session_state.quick_action_query:
                         chat = model.start_chat(history=[])
                         response = chat.send_message(full_prompt)
                         
-                        # Show response progressively
+                        # Show response
                         message_placeholder.markdown(response.text)
                         
                         # Save to history
                         st.session_state.messages.append({"role": "user", "content": user_input})
                         st.session_state.messages.append({"role": "assistant", "content": response.text})
+                        
+                        # Clear the quick action query
                         st.session_state.quick_action_query = ""
+                        
+                        # CRITICAL FIX: Rerun the app to move the input bar to the bottom
+                        st.rerun()
                         
                     except Exception as e:
                         message_placeholder.error(f"Error: {e}")
 
     with col2:
-        if st.button("✕ Cancel", use_container_width=True, key="btn_cancel_qa"):
+        if st.button(" Cancel", use_container_width=True, key="btn_cancel_qa"):
             st.session_state.quick_action_query = ""
             st.rerun()
 
-# --- HANDLE REGULAR CHAT INPUT ---
+# 3. Handle Regular Chat Input (Only shows if no Quick Action is pending)
 else:
     if prompt := st.chat_input("Ask about government services, file a complaint, or get help..."):
         # Show user message immediately
@@ -269,7 +274,7 @@ else:
                 chat = model.start_chat(history=[])
                 response = chat.send_message(full_prompt)
                 
-                # Show response progressively
+                # Show response
                 message_placeholder.markdown(response.text)
                 
                 # Save to history
