@@ -30,7 +30,7 @@ issue_categories = {
         "issues": ["No Water Supply", "Low Pressure", "Contaminated Water", "Water Tanker", "Pipeline Leakage"],
         "prompt": "You are a water utilities expert. Help citizens report water issues, book tankers, and check water quality. Guide them to local water boards."
     },
-    " Electricity": {
+    "⚡ Electricity": {
         "issues": ["Power Cuts", "High Bills", "Meter Issues", "New Connection", "Voltage Problems"],
         "prompt": "You are an electricity services expert. Help citizens report outages, dispute bills, and apply for connections. Guide them to local discoms."
     },
@@ -62,7 +62,7 @@ issue_categories = {
         "issues": ["Building Permissions", "Property Tax", "Rent Agreement", "Illegal Construction", "Land Disputes"],
         "prompt": "You are a housing and property expert. Help citizens with building permissions, property tax, and rent agreements. Guide them to municipal and revenue departments."
     },
-    " Documents & IDs": {
+    "📄 Documents & IDs": {
         "issues": ["Aadhaar Card", "PAN Card", "Passport", "Voter ID", "Driving License"],
         "prompt": "You are a government documentation expert. Help citizens with Aadhaar, PAN, passport, voter ID, and driving license. Guide them to UIDAI, NSDL, Passport Seva, NVSP, and Sarathi portals."
     }
@@ -71,7 +71,7 @@ issue_categories = {
 # --- SESSION STATE INITIALIZATION ---
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": " नमस्ते! Welcome to **Smart Bharat**! I'm your AI civic companion.\n\nI can help you:\n• Report public issues (potholes, garbage, water)\n• Navigate government services (Aadhaar, PAN, Passport)\n• File and track complaints\n\nSelect a category below or just type your question!"}
+        {"role": "assistant", "content": "🙏 नमस्ते! Welcome to **Smart Bharat**! I'm your AI civic companion.\n\nI can help you:\n• Report public issues (potholes, garbage, water)\n• Navigate government services (Aadhaar, PAN, Passport)\n• File and track complaints\n\nSelect a category below or just type your question!"}
     ]
 
 if "selected_category" not in st.session_state:
@@ -112,7 +112,7 @@ st.markdown('<div class="main-header">🇮🇳 Smart Bharat</div>', unsafe_allow
 st.markdown('<div class="sub-header">AI-Powered Civic Companion</div>', unsafe_allow_html=True)
 
 # --- CATEGORY SELECTION UI ---
-st.subheader(" Select Issue Category")
+st.subheader("📋 Select Issue Category")
 cols = st.columns(4)
 category_keys = list(issue_categories.keys())
 
@@ -134,13 +134,15 @@ if st.session_state.selected_category:
     selected_cat = st.session_state.selected_category
     cat_data = issue_categories[selected_cat]
     
-    st.subheader(f" Quick Actions for {selected_cat}")
+    st.subheader(f"⚡ Quick Actions for {selected_cat}")
     sub_cols = st.columns(min(len(cat_data['issues']), 5))
     
     for idx, issue in enumerate(cat_data['issues']):
         with sub_cols[idx % len(sub_cols)]:
             if st.button(issue, key=f"issue_{idx}", use_container_width=True):
+                # Set the quick action query and scroll marker
                 st.session_state.quick_action_query = f"I am facing an issue with {issue}. How do I report this and get it resolved?"
+                st.session_state.scroll_to_chat = True
                 st.rerun()
 
 # --- GEMINI API SETUP ---
@@ -156,133 +158,87 @@ except KeyError:
 st.divider()
 st.subheader("💬 Chat with Civic Assistant")
 
-# 1. Display all previous messages first
+# Add anchor for scrolling
+st.markdown('<div id="chat-section"></div>', unsafe_allow_html=True)
+
+# Display all previous messages
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# 2. Handle Quick Action Input (Pre-filled)
+# Show hint if quick action is selected
 if st.session_state.quick_action_query:
-    st.info("📝 **Quick Action:** Edit the message below if needed, then click Send!")
+    st.info(f"📝 **Quick Action Ready:** The chat input below is pre-filled. Just press Enter to send!")
+
+# --- CHAT INPUT (Always at the bottom) ---
+# Use a form to capture Enter key
+with st.form(key="chat_form", clear_on_submit=True):
+    # Pre-fill with quick action query if available
+    default_value = st.session_state.quick_action_query if st.session_state.quick_action_query else ""
     
     user_input = st.text_input(
         "Your Message:",
-        value=st.session_state.quick_action_query,
+        value=default_value,
         label_visibility="collapsed",
-        key="qa_text_input"
+        placeholder="Ask about government services, file a complaint, or get help...",
+        key="chat_input_field"
     )
     
-    col1, col2 = st.columns([4, 1])
-    with col1:
-        if st.button("➤ Send", use_container_width=True, type="primary", key="btn_send_qa"):
-            if user_input.strip():
-                # Show user message immediately
-                with st.chat_message("user"):
-                    st.markdown(user_input)
-                
-                # Show AI thinking and response
-                with st.chat_message("assistant"):
-                    message_placeholder = st.empty()
-                    message_placeholder.markdown("🤔 *Thinking...*")
-                    
-                    try:
-                        # Build prompt
-                        if st.session_state.selected_category:
-                            base_prompt = issue_categories[st.session_state.selected_category]['prompt']
-                        else:
-                            base_prompt = "You are a helpful civic assistant for Indian citizens."
-                        
-                        transparency_rules = """
-                        TRANSPARENCY RULES:
-                        1. ALWAYS state the exact OFFICIAL GOVERNMENT FEE (or explicitly state if it is FREE).
-                        2. ALWAYS provide the exact official government website link.
-                        3. Provide the exact official timeline.
-                        4. For complaints, guide them to use the CPGRAMS portal.
-                        """
-                        
-                        inclusion_rules = """
-                        DIGITAL INCLUSION RULES:
-                        1. Avoid heavy bureaucratic jargon.
-                        2. Break down complex processes into small steps.
-                        3. If language is not English, respond in that language.
-                        """
-                        
-                        full_prompt = f"{base_prompt}\n\n{transparency_rules}\n\n{inclusion_rules}\n\nLanguage: {language}\n\nQuery: {user_input}"
-                        
-                        # Generate response
-                        chat = model.start_chat(history=[])
-                        response = chat.send_message(full_prompt)
-                        
-                        # Show response
-                        message_placeholder.markdown(response.text)
-                        
-                        # Save to history
-                        st.session_state.messages.append({"role": "user", "content": user_input})
-                        st.session_state.messages.append({"role": "assistant", "content": response.text})
-                        
-                        # Clear the quick action query
-                        st.session_state.quick_action_query = ""
-                        
-                        # CRITICAL FIX: Rerun the app to move the input bar to the bottom
-                        st.rerun()
-                        
-                    except Exception as e:
-                        message_placeholder.error(f"Error: {e}")
+    submitted = st.form_submit_button("➤ Send", use_container_width=True, type="primary")
 
-    with col2:
-        if st.button(" Cancel", use_container_width=True, key="btn_cancel_qa"):
-            st.session_state.quick_action_query = ""
-            st.rerun()
-
-# 3. Handle Regular Chat Input (Only shows if no Quick Action is pending)
-else:
-    if prompt := st.chat_input("Ask about government services, file a complaint, or get help..."):
-        # Show user message immediately
-        with st.chat_message("user"):
-            st.markdown(prompt)
+if submitted and user_input.strip():
+    # Clear the quick action query
+    st.session_state.quick_action_query = ""
+    
+    # Show user message
+    with st.chat_message("user"):
+        st.markdown(user_input)
+    
+    # Show AI response
+    with st.chat_message("assistant"):
+        message_placeholder = st.empty()
+        message_placeholder.markdown("🤔 *Thinking...*")
         
-        # Show AI thinking and response
-        with st.chat_message("assistant"):
-            message_placeholder = st.empty()
-            message_placeholder.markdown("🤔 *Thinking...*")
+        try:
+            # Build prompt
+            if st.session_state.selected_category:
+                base_prompt = issue_categories[st.session_state.selected_category]['prompt']
+            else:
+                base_prompt = "You are a helpful civic assistant for Indian citizens."
             
-            try:
-                # Build prompt
-                if st.session_state.selected_category:
-                    base_prompt = issue_categories[st.session_state.selected_category]['prompt']
-                else:
-                    base_prompt = "You are a helpful civic assistant for Indian citizens."
-                
-                transparency_rules = """
-                TRANSPARENCY RULES:
-                1. ALWAYS state the exact OFFICIAL GOVERNMENT FEE (or explicitly state if it is FREE).
-                2. ALWAYS provide the exact official government website link.
-                3. Provide the exact official timeline.
-                4. For complaints, guide them to use the CPGRAMS portal.
-                """
-                
-                inclusion_rules = """
-                DIGITAL INCLUSION RULES:
-                1. Avoid heavy bureaucratic jargon.
-                2. Break down complex processes into small steps.
-                3. If language is not English, respond in that language.
-                """
-                
-                full_prompt = f"{base_prompt}\n\n{transparency_rules}\n\n{inclusion_rules}\n\nLanguage: {language}\n\nQuery: {prompt}"
-                
-                # Generate response
-                chat = model.start_chat(history=[])
-                response = chat.send_message(full_prompt)
-                
-                # Show response
-                message_placeholder.markdown(response.text)
-                
-                # Save to history
-                st.session_state.messages.append({"role": "user", "content": prompt})
-                st.session_state.messages.append({"role": "assistant", "content": response.text})
-                
-            except Exception as e:
-                message_placeholder.error(f"Error: {e}")
+            transparency_rules = """
+            TRANSPARENCY RULES:
+            1. ALWAYS state the exact OFFICIAL GOVERNMENT FEE (or explicitly state if it is FREE).
+            2. ALWAYS provide the exact official government website link.
+            3. Provide the exact official timeline.
+            4. For complaints, guide them to use the CPGRAMS portal.
+            """
+            
+            inclusion_rules = """
+            DIGITAL INCLUSION RULES:
+            1. Avoid heavy bureaucratic jargon.
+            2. Break down complex processes into small steps.
+            3. If language is not English, respond in that language.
+            """
+            
+            full_prompt = f"{base_prompt}\n\n{transparency_rules}\n\n{inclusion_rules}\n\nLanguage: {language}\n\nQuery: {user_input}"
+            
+            # Generate response
+            chat = model.start_chat(history=[])
+            response = chat.send_message(full_prompt)
+            
+            # Show response
+            message_placeholder.markdown(response.text)
+            
+            # Save to history
+            st.session_state.messages.append({"role": "user", "content": user_input})
+            st.session_state.messages.append({"role": "assistant", "content": response.text})
+            
+            # Rerun to show the new messages
+            st.rerun()
+            
+        except Exception as e:
+            message_placeholder.error(f"Error: {e}")
 
 # --- FOOTER ---
 st.markdown("""
