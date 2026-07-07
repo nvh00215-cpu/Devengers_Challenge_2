@@ -80,46 +80,6 @@ if "selected_category" not in st.session_state:
 if "quick_action_query" not in st.session_state:
     st.session_state.quick_action_query = ""
 
-# --- AI RESPONSE GENERATOR FUNCTION ---
-def get_ai_response(user_prompt, language, selected_cat):
-    try:
-        # 1. Build the Base System Prompt
-        if selected_cat:
-            base_prompt = issue_categories[selected_cat]['prompt']
-        else:
-            base_prompt = "You are a helpful civic assistant for Indian citizens. Provide clear, accurate information about government services and public issues."
-
-        # 2. Add Transparency & Digital Inclusion Rules
-        transparency_rules = """
-        TRANSPARENCY RULES:
-        1. ALWAYS state the exact OFFICIAL GOVERNMENT FEE (or explicitly state if it is FREE). Warn users against paying bribes or middlemen.
-        2. ALWAYS provide the exact official government website link (e.g., uidai.gov.in, passportindia.gov.in, cpgramas.gov.in).
-        3. Provide the exact official timeline (e.g., "By law, this takes 15-30 days").
-        4. For complaints, explicitly guide them to use the CPGRAMS portal.
-        """
-        
-        inclusion_rules = """
-        DIGITAL INCLUSION RULES:
-        1. Avoid heavy bureaucratic jargon. If you use a legal term (like 'Affidavit'), explain it simply.
-        2. Break down complex processes into small, numbered steps.
-        3. If the user's language is not English, respond entirely in that language using respectful and simple vocabulary.
-        """
-
-        full_system_prompt = f"{base_prompt}\n\n{transparency_rules}\n\n{inclusion_rules}\n\nLanguage Preference: {language}"
-
-        # 3. Prepare Chat History
-        chat_history = []
-        for msg in st.session_state.messages[:-1]:
-            role = "user" if msg["role"] == "user" else "model"
-            chat_history.append({"role": role, "parts": [msg["content"]]})
-        
-        # 4. Generate Response
-        chat = model.start_chat(history=chat_history)
-        response = chat.send_message(f"{full_system_prompt}\n\nUser Query: {user_prompt}")
-        return response.text
-    except Exception as e:
-        return f"⚠️ An error occurred: {e}"
-
 # --- SIDEBAR ---
 with st.sidebar:
     st.header("⚙️ Settings")
@@ -196,12 +156,12 @@ except KeyError:
 st.divider()
 st.subheader("💬 Chat with Civic Assistant")
 
-# 1. Display chat history
+# Display all previous messages
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# 2. Handle Quick Action Input (Pre-filled)
+# --- HANDLE QUICK ACTION INPUT ---
 if st.session_state.quick_action_query:
     st.info("📝 **Quick Action:** Edit the message below if needed, then click Send!")
     
@@ -216,31 +176,108 @@ if st.session_state.quick_action_query:
     with col1:
         if st.button(" Send", use_container_width=True, type="primary", key="btn_send_qa"):
             if user_input.strip():
-                # Add user message to history
-                st.session_state.messages.append({"role": "user", "content": user_input})
-                # Clear the quick action state
-                st.session_state.quick_action_query = ""
-                # Get AI response and add to history
-                ai_response = get_ai_response(user_input, language, st.session_state.selected_category)
-                st.session_state.messages.append({"role": "assistant", "content": ai_response})
-                # Rerun to show the new messages
-                st.rerun()
+                # Show user message immediately
+                with st.chat_message("user"):
+                    st.markdown(user_input)
                 
+                # Show AI thinking and response
+                with st.chat_message("assistant"):
+                    message_placeholder = st.empty()
+                    message_placeholder.markdown("🤔 *Thinking...*")
+                    
+                    try:
+                        # Build prompt
+                        if st.session_state.selected_category:
+                            base_prompt = issue_categories[st.session_state.selected_category]['prompt']
+                        else:
+                            base_prompt = "You are a helpful civic assistant for Indian citizens."
+                        
+                        transparency_rules = """
+                        TRANSPARENCY RULES:
+                        1. ALWAYS state the exact OFFICIAL GOVERNMENT FEE (or explicitly state if it is FREE).
+                        2. ALWAYS provide the exact official government website link.
+                        3. Provide the exact official timeline.
+                        4. For complaints, guide them to use the CPGRAMS portal.
+                        """
+                        
+                        inclusion_rules = """
+                        DIGITAL INCLUSION RULES:
+                        1. Avoid heavy bureaucratic jargon.
+                        2. Break down complex processes into small steps.
+                        3. If language is not English, respond in that language.
+                        """
+                        
+                        full_prompt = f"{base_prompt}\n\n{transparency_rules}\n\n{inclusion_rules}\n\nLanguage: {language}\n\nQuery: {user_input}"
+                        
+                        # Generate response
+                        chat = model.start_chat(history=[])
+                        response = chat.send_message(full_prompt)
+                        
+                        # Show response progressively
+                        message_placeholder.markdown(response.text)
+                        
+                        # Save to history
+                        st.session_state.messages.append({"role": "user", "content": user_input})
+                        st.session_state.messages.append({"role": "assistant", "content": response.text})
+                        st.session_state.quick_action_query = ""
+                        
+                    except Exception as e:
+                        message_placeholder.error(f"Error: {e}")
+
     with col2:
         if st.button("✕ Cancel", use_container_width=True, key="btn_cancel_qa"):
             st.session_state.quick_action_query = ""
             st.rerun()
 
-# 3. Handle Regular Chat Input
+# --- HANDLE REGULAR CHAT INPUT ---
 else:
     if prompt := st.chat_input("Ask about government services, file a complaint, or get help..."):
-        # Add user message to history
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        # Get AI response and add to history
-        ai_response = get_ai_response(prompt, language, st.session_state.selected_category)
-        st.session_state.messages.append({"role": "assistant", "content": ai_response})
-        # Rerun to show the new messages
-        st.rerun()
+        # Show user message immediately
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        
+        # Show AI thinking and response
+        with st.chat_message("assistant"):
+            message_placeholder = st.empty()
+            message_placeholder.markdown("🤔 *Thinking...*")
+            
+            try:
+                # Build prompt
+                if st.session_state.selected_category:
+                    base_prompt = issue_categories[st.session_state.selected_category]['prompt']
+                else:
+                    base_prompt = "You are a helpful civic assistant for Indian citizens."
+                
+                transparency_rules = """
+                TRANSPARENCY RULES:
+                1. ALWAYS state the exact OFFICIAL GOVERNMENT FEE (or explicitly state if it is FREE).
+                2. ALWAYS provide the exact official government website link.
+                3. Provide the exact official timeline.
+                4. For complaints, guide them to use the CPGRAMS portal.
+                """
+                
+                inclusion_rules = """
+                DIGITAL INCLUSION RULES:
+                1. Avoid heavy bureaucratic jargon.
+                2. Break down complex processes into small steps.
+                3. If language is not English, respond in that language.
+                """
+                
+                full_prompt = f"{base_prompt}\n\n{transparency_rules}\n\n{inclusion_rules}\n\nLanguage: {language}\n\nQuery: {prompt}"
+                
+                # Generate response
+                chat = model.start_chat(history=[])
+                response = chat.send_message(full_prompt)
+                
+                # Show response progressively
+                message_placeholder.markdown(response.text)
+                
+                # Save to history
+                st.session_state.messages.append({"role": "user", "content": prompt})
+                st.session_state.messages.append({"role": "assistant", "content": response.text})
+                
+            except Exception as e:
+                message_placeholder.error(f"Error: {e}")
 
 # --- FOOTER ---
 st.markdown("""
